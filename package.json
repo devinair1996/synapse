@@ -1,0 +1,17 @@
+{
+  "name": "synapseos",
+  "version": "0.1.0",
+  "description": "SynapseOS: cited work evidence chat for updates and performance reviews, on Gemini and Cloud Run",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test test/"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@google/genai": "^1.0.0",
+    "express": "^4.21.0"
+  }
+}

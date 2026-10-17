@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SynapseOS</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+<header class="bg-slate-900 text-white">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
+    <h1 class="text-xl font-semibold tracking-tight">SynapseOS</h1>
+    <span class="text-slate-400 text-sm hidden sm:inline">Cited work evidence for updates and reviews</span>
+    <div class="ml-auto flex flex-wrap items-center gap-2 text-sm">
+      <label class="text-slate-300">View as
+        <select id="role" class="ml-1 rounded bg-slate-800 border border-slate-600 px-2 py-1"><option value="employee">Employee</option><option value="manager">Manager</option></select>
+      </label>
+      <label id="meWrap" class="text-slate-300">I am
+        <select id="me" class="ml-1 rounded bg-slate-800 border border-slate-600 px-2 py-1"></select>
+      </label>
+      <span id="modeBadge" class="text-xs px-2 py-1 rounded bg-slate-700">connecting...</span>
+    </div>
+  </div>
+  <nav class="max-w-6xl mx-auto px-4 flex gap-1 text-sm">
+    <button data-tab="chat" class="tab px-4 py-2 rounded-t">Chat</button>
+    <button data-tab="review" class="tab px-4 py-2 rounded-t">Review prep</button>
+    <button data-tab="sources" class="tab px-4 py-2 rounded-t">Sources</button>
+  </nav>
+</header>
+<div id="warn" class="hidden bg-amber-100 text-amber-900 text-sm px-4 py-2 text-center"></div>
+
+<main class="max-w-6xl mx-auto px-4 py-6">
+  <div id="status" class="hidden text-sm rounded p-3 mb-4"></div>
+
+  <!-- CHAT -->
+  <section id="tab-chat" class="space-y-3">
+    <div id="scopeNote" class="text-xs text-slate-500"></div>
+    <div class="flex flex-wrap gap-2 items-center text-sm">
+      <span class="text-slate-500">Quick views:</span>
+      <button id="standupBtn" class="px-3 py-1 rounded border border-slate-300 bg-white hover:bg-slate-100">Standup (last 7 days)</button>
+      <button id="teamBtn" class="px-3 py-1 rounded border border-slate-300 bg-white hover:bg-slate-100">Team update (last 14 days)</button>
+      <details class="ml-auto"><summary class="cursor-pointer text-slate-600">Filters</summary>
+        <div class="mt-2 flex flex-wrap gap-3 items-center rounded border border-slate-200 bg-white p-2">
+          <span id="personFilterWrap">Person <select id="fPerson" class="border border-slate-300 rounded px-1 py-0.5"><option value="">Everyone</option></select></span>
+          <span>From <input id="fFrom" placeholder="YYYY-MM-DD" class="w-28 border border-slate-300 rounded px-1 py-0.5"></span>
+          <span>To <input id="fTo" placeholder="YYYY-MM-DD" class="w-28 border border-slate-300 rounded px-1 py-0.5"></span>
+          <span id="fSources"></span>
+        </div>
+      </details>
+    </div>
+    <div id="thread" class="space-y-3 min-h-[12rem]"></div>
+    <div class="flex gap-2 sticky bottom-0 bg-slate-50 py-2">
+      <input id="askIn" class="flex-1 rounded border border-slate-300 px-3 py-2 text-sm" placeholder="e.g. What did I ship on payments in the last 6 months?" aria-label="Question">
+      <button id="askBtn" class="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50">Ask</button>
+    </div>
+    <div id="suggest" class="flex flex-wrap gap-2 text-xs"></div>
+  </section>
+
+  <!-- REVIEW -->
+  <section id="tab-review" class="hidden space-y-4">
+    <div id="reviewBlocked" class="hidden rounded border border-amber-300 bg-amber-50 p-4 text-sm">Review drafts are employee-owned. Switch to the employee view to gather and draft your own evidence. Managers can use chat and the team update for work status.</div>
+    <div id="reviewMain" class="space-y-4">
+      <p class="text-sm text-slate-600">Gather evidence for your own review. You choose which claims go into the draft, and the draft uses only those. Evidence shows what you did and, where the sources say so, the outcome. It does not rate you.</p>
+      <div class="grid md:grid-cols-[1fr_16rem] gap-3">
+        <div><label class="text-xs text-slate-500">Competencies (one per line, "Name: description")</label>
+          <textarea id="comps" class="w-full h-32 rounded border border-slate-300 p-2 text-xs"></textarea></div>
+        <div class="space-y-2 text-sm"><label class="text-xs text-slate-500">Review period</label>
+          <input id="rFrom" placeholder="From YYYY-MM-DD" class="w-full border border-slate-300 rounded px-2 py-1">
+          <input id="rTo" placeholder="To YYYY-MM-DD" class="w-full border border-slate-300 rounded px-2 py-1">
+          <button id="evBtn" class="w-full px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">Find my evidence</button></div>
+      </div>
+      <div id="reviewOut" class="space-y-3"></div>
+      <div id="draftBar" class="hidden"><button id="draftBtn" class="px-4 py-2 rounded bg-emerald-600 text-white text-sm hover:bg-emerald-700 disabled:opacity-50">Draft from selected claims</button> <span id="selCount" class="text-xs text-slate-500"></span></div>
+      <div id="draftOut"></div>
+    </div>
+  </section>
+
+  <!-- SOURCES -->
+  <section id="tab-sources" class="hidden space-y-4">
+    <div class="rounded border border-slate-200 bg-white p-4">
+      <div class="flex flex-wrap items-center gap-2">
+        <h2 class="font-semibold mr-auto">Evidence store</h2>
+        <button id="demoBtn" class="px-3 py-1.5 rounded border border-slate-300 text-sm hover:bg-slate-100">Load demo data</button>
+        <button id="clearBtn" class="px-3 py-1.5 rounded border border-slate-300 text-sm hover:bg-slate-100">Clear all</button>
+      </div>
+      <div id="summary" class="text-sm text-slate-600 mt-2"></div>
+      <details class="mt-3"><summary class="text-sm cursor-pointer text-blue-700">People and aliases</summary>
+        <p class="text-xs text-slate-500 mt-1">One per line: "Full Name: handle, other handle". Maps GitHub logins, Jira names and Slack names to one person.</p>
+        <textarea id="peopleText" class="w-full h-24 rounded border border-slate-300 p-2 text-xs mt-1"></textarea>
+        <button id="peopleBtn" class="mt-1 px-3 py-1 rounded bg-slate-800 text-white text-sm">Save</button></details>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="rounded border border-slate-200 bg-white p-4 space-y-2 text-sm">
+        <h3 class="font-semibold">GitHub <span class="text-xs font-normal text-emerald-700">live</span></h3>
+        <input id="ghRepo" class="w-full border border-slate-300 rounded px-2 py-1" placeholder="owner/repo">
+        <input id="ghSince" class="w-full border border-slate-300 rounded px-2 py-1" placeholder="Since YYYY-MM-DD (optional)">
+        <input id="ghToken" type="password" autocomplete="off" class="w-full border border-slate-300 rounded px-2 py-1" placeholder="Personal access token (optional, not stored)">
+        <button data-act="github" class="px-3 py-1.5 rounded bg-slate-800 text-white">Fetch commits and PRs</button>
+      </div>
+      <div class="rounded border border-slate-200 bg-white p-4 space-y-2 text-sm">
+        <h3 class="font-semibold">Jira <span class="text-xs font-normal text-emerald-700">live or export</span></h3>
+        <input id="jBase" class="w-full border border-slate-300 rounded px-2 py-1" placeholder="https://yoursite.atlassian.net">
+        <div class="grid grid-cols-2 gap-2"><input id="jEmail" class="border border-slate-300 rounded px-2 py-1" placeholder="Email"><input id="jToken" type="password" autocomplete="off" class="border border-slate-300 rounded px-2 py-1" placeholder="API token (not stored)"></div>
+        <input id="jJql" class="w-full border border-slate-300 rounded px-2 py-1" placeholder="JQL (default: updated in last 270 days)">
+        <button data-act="jira" class="px-3 py-1.5 rounded bg-slate-800 text-white">Fetch issues</button>
+        <div class="pt-2 border-t border-slate-100"><label class="text-xs text-slate-500">Or upload an export (CSV, or JSON from the API)</label><input id="jFile" type="file" accept=".csv,.json" class="block text-xs mt-1"></div>
+      </div>
+      <div class="rounded border border-slate-200 bg-white p-4 space-y-2 text-sm">
+        <h3 class="font-semibold">Slack <span class="text-xs font-normal text-slate-500">export upload</span></h3>
+        <input id="slChannel" class="w-full border border-slate-300 rounded px-2 py-1" placeholder="Channel name, e.g. payments">
+        <input id="slFiles" type="file" multiple accept=".json" class="block text-xs">
+        <p class="text-xs text-slate-500">Choose the channel's day JSON files, plus users.json to map names.</p>
+        <button data-act="slack" class="px-3 py-1.5 rounded bg-slate-800 text-white">Import</button>
+      </div>
+      <div class="rounded border border-slate-200 bg-white p-4 space-y-2 text-sm">
+        <h3 class="font-semibold">Documents <span class="text-xs font-normal text-slate-500">upload</span></h3>
+        <input id="dTitle" class="w-full border border-slate-300 rounded px-2 py-1" placeholder="Title (defaults to file name)">
+        <div class="grid grid-cols-2 gap-2"><input id="dAuthor" class="border border-slate-300 rounded px-2 py-1" placeholder="Author"><input id="dDate" class="border border-slate-300 rounded px-2 py-1" placeholder="Date YYYY-MM-DD"></div>
+        <input id="dFile" type="file" accept=".txt,.md,.pdf" class="block text-xs">
+        <button data-act="doc" class="px-3 py-1.5 rounded bg-slate-800 text-white">Import</button>
+      </div>
+    </div>
+    <p class="text-xs text-slate-500">Credentials are sent to this server for one request and are not stored. Production path: scheduled sync for every source, Slack and Drive via their APIs, and identity-based access instead of the view toggle.</p>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const au = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '');
+const EV = {}; // evidence id -> item
+let cfg = null, history = [], tab = 'chat', reviewClaims = {};
+
+async function api(url, body, method) {
+  const res = await fetch(url, { method: method || (body ? 'POST' : 'GET'), headers: { 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const data = res.status === 204 ? null : await res.json();
+  if (!res.ok) throw new Error(data?.error || res.statusText);
+  return data;
+}
+function setStatus(msg, kind = 'info') {
+  const el = $('status');
+  if (!msg) return el.classList.add('hidden');
+  el.className = 'text-sm rounded p-3 mb-4 ' + (kind === 'error' ? 'bg-red-50 text-red-800' : kind === 'warn' ? 'bg-amber-50 text-amber-900' : 'bg-blue-50 text-blue-900');
+  el.textContent = msg;
+}
+const role = () => $('role').value, me = () => $('me').value;
+
+function showTab(t) {
+  tab = t;
+  ['chat', 'review', 'sources'].forEach((n) => $('tab-' + n).classList.toggle('hidden', n !== t));
+  document.querySelectorAll('.tab').forEach((b) => b.className = 'tab px-4 py-2 rounded-t ' + (b.dataset.tab === t ? 'bg-slate-50 text-slate-900 font-medium' : 'text-slate-300 hover:text-white'));
+  if (t === 'review') applyRole();
+}
+document.querySelectorAll('.tab').forEach((b) => b.onclick = () => showTab(b.dataset.tab));
+
+function applyState(s) {
+  const st = s.summary;
+  cfg = { ...cfg, ...s };
+  $('summary').innerHTML = st.total
+    ? `${st.total} items from ${Object.entries(st.bySource).map(([k, v]) => `${esc(k)} ${v}`).join(', ')}. Range ${au(st.from)} to ${au(st.to)}. People: ${Object.entries(st.byPerson).map(([k, v]) => `${esc(k)} ${v}`).join(', ')}.`
+    : 'No evidence yet. Connect a source or load the demo data.';
+  $('peopleText').value = s.peopleText || '';
+  const names = s.people.length ? s.people : Object.keys(st.byPerson);
+  const cur = me();
+  $('me').innerHTML = names.map((n) => `<option>${esc(n)}</option>`).join('') || '<option value="">(no people yet)</option>';
+  if (names.includes(cur)) $('me').value = cur;
+  $('fPerson').innerHTML = '<option value="">Everyone</option>' + names.map((n) => `<option>${esc(n)}</option>`).join('');
+  $('fSources').innerHTML = Object.keys(st.bySource).map((k) => `<label class="mr-2"><input type="checkbox" class="fsrc" value="${esc(k)}"> ${esc(k)}</label>`).join('');
+  applyRole();
+}
+
+function applyRole() {
+  const mgr = role() === 'manager';
+  $('meWrap').classList.toggle('hidden', mgr);
+  $('personFilterWrap').classList.toggle('hidden', !mgr);
+  $('standupBtn').classList.toggle('hidden', mgr);
+  $('teamBtn').classList.toggle('hidden', !mgr);
+  $('reviewBlocked').classList.toggle('hidden', !mgr);
+  $('reviewMain').classList.toggle('hidden', mgr);
+  $('scopeNote').textContent = mgr
+    ? 'Manager view: work status across the team. This view reports what work happened and its status. It does not evaluate or rank people, and review drafts are not available here.'
+    : 'Employee view: answers use only your own evidence. Every statement cites its source items.';
+  const sg = mgr
+    ? ['What is blocking the usage export?', 'What shipped on payments in the last month?', 'What is in progress and at risk?']
+    : ['What did I ship on payments in the last 6 months?', 'What mentoring or leadership work have I done?', 'What outcomes can I point to from the Postgres migration?'];
+  $('suggest').innerHTML = sg.map((q) => `<button class="px-2 py-1 rounded-full border border-slate-300 bg-white hover:bg-slate-100">${esc(q)}</button>`).join('');
+  $('suggest').querySelectorAll('button').forEach((b) => b.onclick = () => { $('askIn').value = b.textContent; ask(); });
+}
+$('role').onchange = applyRole;
+
+// ---------- citations ----------
+const chip = (id) => `<button data-cite="${esc(id)}" class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-blue-100 text-slate-700 border border-slate-200 mr-1" title="${esc(EV[id]?.title || id)}">${esc(id)}</button>`;
+const SRC_COLOUR = { github: 'bg-purple-100 text-purple-800', jira: 'bg-blue-100 text-blue-800', slack: 'bg-amber-100 text-amber-800', drive: 'bg-emerald-100 text-emerald-800' };
+function bindCites(root) {
+  root.querySelectorAll('[data-cite]').forEach((b) => b.onclick = () => {
+    const i = EV[b.dataset.cite]; if (!i) return;
+    let box = root.querySelector('.cite-box');
+    if (!box) { box = document.createElement('div'); box.className = 'cite-box mt-2 rounded border border-slate-300 bg-white p-3 text-sm'; root.appendChild(box); }
+    box.innerHTML = `<div class="flex items-center gap-2 mb-1"><span class="text-[11px] font-semibold px-1.5 py-0.5 rounded ${SRC_COLOUR[i.source] || 'bg-slate-100'}">${esc(i.source)}</span><span class="font-medium">${esc(i.title)}</span><button class="ml-auto text-slate-400" aria-label="Close">&times;</button></div>
+      <div class="text-xs text-slate-500">${esc(i.id)} &middot; ${au(i.date)} &middot; ${esc(i.author)}${i.status ? ' &middot; ' + esc(i.status) : ''}</div>
+      <p class="mt-1 text-slate-700 whitespace-pre-wrap">${esc(i.text)}</p>${i.url ? `<a class="text-xs text-blue-700" href="${esc(i.url)}" target="_blank" rel="noopener">Open original</a>` : ''}`;
+    box.querySelector('button').onclick = () => box.remove();
+  });
+}
+
+// ---------- chat ----------
+const SECTIONS = [['done', 'Done'], ['in_progress', 'In progress'], ['blocker', 'Blockers'], ['risk', 'Risks'], ['other', 'Other']];
+const claimLi = (c) => `<li>${esc(c.text)} ${c.itemIds.map(chip).join('')}${c.unverifiedNumbers?.length ? `<span class="text-[11px] text-amber-700" title="These numbers do not appear in the cited items"> check: ${c.unverifiedNumbers.map(esc).join(', ')}</span>` : ''}</li>`;
+function renderAnswer(r, grouped) {
+  Object.assign(EV, r.evidence);
+  const cov = r.coverage, v = r.verification;
+  const body = grouped
+    ? SECTIONS.map(([k, label]) => { const cs = r.claims.filter((c) => c.section === k); return cs.length ? `<div class="mb-2"><div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">${label}</div><ul class="list-disc ml-5 space-y-1">${cs.map(claimLi).join('')}</ul></div>` : ''; }).join('')
+    : `<ul class="list-disc ml-5 space-y-1">${r.claims.map(claimLi).join('')}</ul>`;
+  const sc = cov.scope;
+  return `<div class="msg rounded border border-slate-200 bg-white p-4 text-sm">
+    ${r.claims.length ? body : '<p class="text-slate-500">No supported answer found in the evidence.</p>'}
+    ${r.gaps?.length ? `<div class="mt-2 rounded bg-amber-50 border border-amber-200 p-2 text-xs"><strong>Not shown in the evidence:</strong> ${r.gaps.map(esc).join(' ')}</div>` : ''}
+    <div class="mt-3 text-xs text-slate-500 border-t border-slate-100 pt-2">
+      Searched ${cov.itemsInStore} items in store, ${cov.afterFilters} after filters (${esc(sc.person)}${sc.from ? `, ${au(sc.from)} to ${au(sc.to || '')}` : ''}${sc.sources.length ? ', ' + sc.sources.map(esc).join('/') : ''}), ${cov.retrieved} passed to the model${cov.truncatedWindow ? ' (window truncated to the newest 60)' : ''}.
+      Verifier: ${v.badIds} unknown citation(s) removed, ${v.noCitation} uncited claim(s) removed, ${v.flaggedNumbers} claim(s) with numbers to check.
+      <span class="text-slate-400">${esc(r.mode)}</span></div></div>`;
+}
+function addThread(html, cls = '') { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; $('thread').appendChild(d); bindCites(d); d.scrollIntoView({ block: 'end', behavior: 'smooth' }); return d; }
+
+function currentFilters() {
+  return { person: $('fPerson').value || undefined, from: $('fFrom').value || undefined, to: $('fTo').value || undefined, sources: [...document.querySelectorAll('.fsrc:checked')].map((c) => c.value) };
+}
+async function runChat(question, preset, label) {
+  $('askBtn').disabled = true; setStatus('');
+  addThread(`<div class="text-sm text-right"><span class="inline-block rounded bg-blue-600 text-white px-3 py-1.5">${esc(label || question)}</span></div>`);
+  const pending = addThread('<p class="text-sm text-slate-500">Searching evidence...</p>');
+  try {
+    const r = await api('/api/chat', { question, history: history.slice(-6), role: role(), person: role() === 'employee' ? me() : undefined, filters: currentFilters(), preset });
+    pending.remove();
+    addThread(renderAnswer(r, !!preset));
+    history.push({ role: 'user', text: label || question }, { role: 'assistant', text: r.claims.map((c) => c.text).join(' ').slice(0, 800) });
+  } catch (e) { pending.remove(); setStatus(e.message, 'error'); }
+  $('askBtn').disabled = false;
+}
+function ask() { const q = $('askIn').value.trim(); if (!q) return; $('askIn').value = ''; runChat(q); }
+$('askBtn').onclick = ask; $('askIn').onkeydown = (e) => e.key === 'Enter' && ask();
+$('standupBtn').onclick = () => runChat('', 'standup', 'Standup for the last 7 days');
+$('teamBtn').onclick = () => runChat('', 'team', 'Team update for the last 14 days');
+
+// ---------- review ----------
+const DEFAULT_COMPS = 'Delivery and impact: shipped work with a measurable outcome\nTechnical quality: reliability, testing, security\nCollaboration and communication: documentation, working across teams\nMentoring and leadership: mentor, coach, guide, onboard, review others\' work, lead incidents';
+function updateSel() { const n = Object.values(reviewClaims).filter((x) => x.on).length; $('selCount').textContent = `${n} selected`; $('draftBtn').disabled = !n; }
+$('evBtn').onclick = async () => {
+  $('evBtn').disabled = true; setStatus('Finding evidence...'); $('draftOut').innerHTML = '';
+  try {
+    const r = await api('/api/review/evidence', { role: role(), person: me(), competencies: $('comps').value, from: $('rFrom').value || undefined, to: $('rTo').value || undefined });
+    Object.assign(EV, r.evidence); reviewClaims = {}; setStatus('');
+    $('reviewOut').innerHTML = r.competencies.map((c, ci) => `<div class="rounded border ${c.thin ? 'border-amber-300' : 'border-slate-200'} bg-white p-4 text-sm">
+      <div class="flex flex-wrap items-center gap-2 mb-2"><h3 class="font-semibold">${esc(c.name)}</h3>
+        ${c.thin ? '<span class="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">EVIDENCE THIN</span>' : ''}
+        <span class="ml-auto text-xs text-slate-400">${c.evidenceCount} relevant item(s) of ${r.itemsInPeriod} in period</span></div>
+      ${c.claims.length ? `<ul class="space-y-2">${c.claims.map((cl, n) => { const key = `${ci}-${n}`; reviewClaims[key] = { text: cl.text, itemIds: cl.itemIds, on: false }; return `<li class="flex gap-2"><input type="checkbox" data-sel="${key}" class="mt-1" aria-label="Include claim"><span>${esc(cl.text)} ${cl.itemIds.map(chip).join('')}${cl.unverifiedNumbers?.length ? `<span class="text-[11px] text-amber-700"> check: ${cl.unverifiedNumbers.map(esc).join(', ')}</span>` : ''}</span></li>`; }).join('')}</ul>` : '<p class="text-slate-500">No supported evidence found for this competency.</p>'}
+      ${c.gaps?.length ? `<div class="mt-2 rounded bg-amber-50 border border-amber-200 p-2 text-xs">${c.gaps.map(esc).join(' ')}</div>` : ''}</div>`).join('');
+    document.querySelectorAll('#reviewOut [data-sel]').forEach((cb) => cb.onchange = () => { reviewClaims[cb.dataset.sel].on = cb.checked; updateSel(); });
+    bindCites($('reviewOut')); $('draftBar').classList.remove('hidden'); updateSel();
+  } catch (e) { setStatus(e.message, 'error'); }
+  $('evBtn').disabled = false;
+};
+$('draftBtn').onclick = async () => {
+  $('draftBtn').disabled = true; setStatus('Drafting...');
+  try {
+    const claims = Object.values(reviewClaims).filter((c) => c.on).map(({ text, itemIds }) => ({ text, itemIds }));
+    const r = await api('/api/review/draft', { role: role(), person: me(), claims }); Object.assign(EV, r.evidence); setStatus('');
+    $('draftOut').innerHTML = `<div class="rounded border border-emerald-300 bg-white p-4 text-sm"><h3 class="font-semibold mb-2">Draft self-assessment</h3>
+      ${r.paragraphs.map((p) => `<p class="mb-2">${esc(p.text)} ${p.itemIds.map(chip).join('')}</p>`).join('')}
+      <p class="text-xs text-slate-500 mt-2">${esc(r.note)} Verifier: ${r.verification.badIds} unknown citation(s) and ${r.verification.noCitation} uncited paragraph(s) removed, ${r.verification.flaggedNumbers} with numbers to check.</p>
+      <button id="copyDraft" class="mt-2 px-3 py-1 text-xs rounded border border-slate-300 hover:bg-slate-100">Copy text</button></div>`;
+    bindCites($('draftOut'));
+    $('copyDraft').onclick = async (e) => { try { await navigator.clipboard.writeText(r.paragraphs.map((p) => p.text).join('\n\n')); e.target.textContent = 'Copied'; } catch { e.target.textContent = 'Copy failed'; } };
+  } catch (e) { setStatus(e.message, 'error'); }
+  $('draftBtn').disabled = false; updateSel();
+};
+
+// ---------- sources ----------
+const readText = (f) => f.text();
+const b64 = async (f) => { const u = new Uint8Array(await f.arrayBuffer()); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
+async function ingest(url, body, label) {
+  setStatus(`Importing ${label}...`);
+  try {
+    const r = await api(url, body);
+    applyState(r);
+    setStatus(`${label}: ${r.fetched ?? r.added + r.updated} item(s) read, ${r.added} new, ${r.updated} updated, ${r.skipped} skipped${r.truncated ? '. Hit the page limit, so older items were not fetched' : ''}.`, r.truncated ? 'warn' : 'info');
+  } catch (e) { setStatus(e.message, 'error'); }
+}
+document.querySelector('[data-act=github]').onclick = () => ingest('/api/ingest/github', { repo: $('ghRepo').value.trim(), since: $('ghSince').value || undefined, token: $('ghToken').value || undefined }, 'GitHub');
+document.querySelector('[data-act=jira]').onclick = () => ingest('/api/ingest/jira', { baseUrl: $('jBase').value.trim(), email: $('jEmail').value.trim(), token: $('jToken').value, jql: $('jJql').value || undefined }, 'Jira');
+$('jFile').onchange = async (e) => { const f = e.target.files[0]; if (f) { await ingest('/api/ingest/jira-export', { filename: f.name, content: await readText(f) }, 'Jira export'); e.target.value = ''; } };
+document.querySelector('[data-act=slack]').onclick = async () => {
+  const files = await Promise.all([...$('slFiles').files].map(async (f) => ({ name: f.name, content: await readText(f) })));
+  await ingest('/api/ingest/slack', { channel: $('slChannel').value, files }, 'Slack');
+};
+document.querySelector('[data-act=doc]').onclick = async () => {
+  const f = $('dFile').files[0]; if (!f) return setStatus('Choose a file first', 'warn');
+  const body = { title: $('dTitle').value || f.name.replace(/\.[^.]+$/, ''), author: $('dAuthor').value, date: $('dDate').value || undefined };
+  if (f.name.toLowerCase().endsWith('.pdf')) body.pdfBase64 = await b64(f); else body.text = await readText(f);
+  await ingest('/api/ingest/doc', body, 'Document');
+};
+$('demoBtn').onclick = async () => { const r = await api('/api/demo', {}); $('comps').value = r.competencies; applyState(r); setStatus('Demo data loaded: fictional team, 4 sources.'); };
+$('clearBtn').onclick = async () => { applyState(await api('/api/evidence', null, 'DELETE')); setStatus('Evidence cleared.'); };
+$('peopleBtn').onclick = async () => { applyState(await api('/api/people', { text: $('peopleText').value }, 'PUT')); setStatus('People saved.'); };
+
+(async () => {
+  const c = await api('/api/config'); cfg = c;
+  $('modeBadge').textContent = c.mode === 'offline' ? 'Offline (no model)' : `${c.model} via ${c.mode}`;
+  $('modeBadge').className = 'text-xs px-2 py-1 rounded ' + (c.mode === 'offline' ? 'bg-amber-600' : 'bg-emerald-700');
+  const warn = c.mode === 'offline' ? 'Offline mode lists matching items without a model. For UI testing only.'
+    : c.mode === 'ai-studio' ? 'AI Studio free tier: Google may use requests to improve its products. Use fixture or public data only, not real colleagues\' work.' : '';
+  if (warn) { $('warn').textContent = warn; $('warn').classList.remove('hidden'); }
+  $('comps').value = DEFAULT_COMPS; applyState(c);
+  showTab(c.summary.total ? 'chat' : 'sources');
+})();
+</script>
+</body>
+</html>
