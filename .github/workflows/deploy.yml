@@ -1,0 +1,113 @@
+# Deploys SynapseOS to Google Cloud Run on push to main.
+# Auth is Workload Identity Federation: no GCP key is stored in GitHub.
+# One-time setup (see README "CI/CD" section) creates the pool/provider and a
+# dedicated deployer service account, then these four repo variables/secrets:
+#   vars.GCP_PROJECT, vars.GCP_REGION, vars.GCP_WIF_PROVIDER, secrets.GCP_DEPLOY_SA
+name: deploy
+
+on:
+  push:
+    branches: [main, poc/deploy-test]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT }}
+  REGION: ${{ vars.GCP_REGION }}
+  SERVICE: synapseos
+  REPO: synapse
+  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/synapse/synapseos:${{ github.sha }}
+
+permissions:
+  contents: read
+  id-token: write # required for WIF token exchange
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci && npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Ensure Artifact Registry repo exists
+        run: |
+          gcloud artifacts repositories describe "$REPO" \
+            --location="$REGION" >/dev/null 2>&1 || \
+          gcloud artifacts repositories create "$REPO" \
+            --repository-format=docker --location="$REGION"
+
+      - name: Configure Docker auth
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}
+
+      - name: Resolve runtime service account
+        run: |
+          EXISTING="$(gcloud run services describe "$SERVICE" --region "$REGION" \
+            --format='value(spec.template.spec.serviceAccountName)' 2>/dev/null || true)"
+          if [ -n "$EXISTING" ]; then
+            echo "RUNTIME_SA=$EXISTING" >> "$GITHUB_ENV"
+            echo "Existing service; runtime service account: $EXISTING"
+          else
+            echo "No existing service: first deploy will use the compute default service account."
+          fi
+
+      - name: Ensure Vertex AI access (best effort)
+        run: |
+          if [ -z "${RUNTIME_SA:-}" ]; then
+            echo "New service: the compute default SA needs roles/aiplatform.user."
+            echo "If /api/chat returns 403 later, grant it per README 'Deploy via GitHub Actions'."
+            exit 0
+          fi
+          gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+            --member="serviceAccount:${RUNTIME_SA}" --role="roles/aiplatform.user" \
+            --condition=None --quiet \
+            || echo "::warning::could not grant roles/aiplatform.user to ${RUNTIME_SA}; grant manually if Gemini calls 403"
+
+      - name: Deploy to Cloud Run
+        run: |
+          ARGS=("run" "deploy" "$SERVICE"
+            --image "$IMAGE"
+            --region "$REGION"
+            --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_REGION=${REGION},GEMINI_MODEL=gemini-2.5-flash"
+            --max-instances 1 --timeout 300
+            --allow-unauthenticated --quiet)
+          if [ -n "${RUNTIME_SA:-}" ]; then
+            ARGS+=(--service-account "$RUNTIME_SA")
+          fi
+          gcloud "${ARGS[@]}"
+
+      - name: Smoke test
+        run: |
+          URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
+          HEALTH="$(curl -sf --retry 5 --retry-delay 5 "$URL/api/health")"
+          echo "health: $HEALTH"
+          echo "$HEALTH" | grep -q '"ok":true'

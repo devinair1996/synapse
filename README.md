@@ -37,6 +37,51 @@ PROJECT_ID=your-project ./deploy.sh
 
 This enables the APIs, grants the Cloud Run service account `roles/aiplatform.user`, and deploys from source. The service is capped at one instance because the evidence store is in memory (it also writes `data/evidence.json`, which is ephemeral on Cloud Run). `--allow-unauthenticated` is for the demo only.
 
+### Deploy via GitHub Actions
+
+`.github/workflows/deploy.yml` runs the tests, builds the Dockerfile image in Actions (no Cloud Build service account permissions needed), pushes it to Artifact Registry, deploys to Cloud Run, and smoke-tests `/api/health`. It authenticates with Workload Identity Federation — no GCP key is stored in GitHub.
+
+One-time setup:
+
+```bash
+# project and pool/provider for GitHub OIDC
+PROJECT_ID=your-project
+gcloud services enable iamcredentials.googleapis.com artifactregistry.googleapis.com run.googleapis.com
+
+gcloud iam workload-identity-pools create github --location=global
+gcloud iam workload-identity-pools providers create-oidc github-oidc \
+  --location=global --workload-identity-pool=github \
+  --issuer-uri="https://token.actions.githubusercontent.com" \
+  --attribute-mapping="google.subject=assertion.sub" \
+  --attribute-condition="assertion.repository_owner=='devinair1996'"
+# Do NOT pass --allowed-audiences here: the auth flow requests the GitHub OIDC
+# token with audience = this provider's resource URI, and restricting audiences
+# to token.actions.githubusercontent.com makes the token exchange fail with
+# "The audience in ID Token [...] does not match the expected audience."
+
+# deployer service account and the roles the workflow needs. artifactregistry
+# .admin (not .writer) is required because the workflow creates the repository.
+gcloud iam service-accounts create synapse-deploy
+SA="synapse-deploy@${PROJECT_ID}.iam.gserviceaccount.com"
+for ROLE in roles/run.admin roles/artifactregistry.admin roles/iam.serviceAccountUser; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$SA" --role="$ROLE" --condition=None
+done
+gcloud iam service-accounts add-iam-policy-binding "$SA" \
+  --member="principalSet://iam.googleapis.com/$(gcloud iam workload-identity-pools describe github --location=global --format='value(name)')/*" \
+  --role="roles/iam.workloadIdentityUser"
+```
+
+Then set in the GitHub repo (Settings → Secrets and variables → Actions):
+
+| Name | Type | Value |
+|------|------|-------|
+| `GCP_PROJECT` | variable | your project ID |
+| `GCP_REGION` | variable | `asia-south1` (Mumbai, for India viewers) |
+| `GCP_WIF_PROVIDER` | variable | `projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/github-oidc` |
+| `GCP_DEPLOY_SA` | secret | `synapse-deploy@PROJECT_ID.iam.gserviceaccount.com` |
+
+The workflow runs on pushes to `main` and on demand via workflow_dispatch.
+
 ## Honest scope
 
 - **Live connectors:** GitHub (live), Jira (live or export), Slack (export), documents (upload). Slack and Google Drive APIs, scheduled sync and webhooks are the production path. Credentials entered in the UI are used for one request and are not stored.
