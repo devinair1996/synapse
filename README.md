@@ -52,14 +52,18 @@ gcloud iam workload-identity-pools create github --location=global
 gcloud iam workload-identity-pools providers create-oidc github-oidc \
   --location=global --workload-identity-pool=github \
   --issuer-uri="https://token.actions.githubusercontent.com" \
-  --allowed-audiences="https://token.actions.githubusercontent.com" \
   --attribute-mapping="google.subject=assertion.sub" \
   --attribute-condition="assertion.repository_owner=='devinair1996'"
+# Do NOT pass --allowed-audiences here: the auth flow requests the GitHub OIDC
+# token with audience = this provider's resource URI, and restricting audiences
+# to token.actions.githubusercontent.com makes the token exchange fail with
+# "The audience in ID Token [...] does not match the expected audience."
 
-# deployer service account and the roles the workflow needs
+# deployer service account and the roles the workflow needs. artifactregistry
+# .admin (not .writer) is required because the workflow creates the repository.
 gcloud iam service-accounts create synapse-deploy
 SA="synapse-deploy@${PROJECT_ID}.iam.gserviceaccount.com"
-for ROLE in roles/run.admin roles/artifactregistry.writer roles/iam.serviceAccountUser; do
+for ROLE in roles/run.admin roles/artifactregistry.admin roles/iam.serviceAccountUser; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$SA" --role="$ROLE" --condition=None
 done
 gcloud iam service-accounts add-iam-policy-binding "$SA" \
