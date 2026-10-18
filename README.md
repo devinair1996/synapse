@@ -1,4 +1,4 @@
-SynapseOS is a cited evidence chat over your work tools. It pulls commits, pull requests, tickets, chat messages and documents into one evidence store, then answers questions with every statement linked to a source item and checked by code. It serves two uses from the same store: an employee preparing a performance review or update, and a manager looking up team status.
+Synapse is a cited evidence chat over your work tools. It pulls commits, pull requests, tickets, chat messages and documents into one evidence store, then answers questions with every statement linked to a source item and checked by code. It serves two uses from the same store: an employee preparing a performance review or update, and a manager looking up team status.
 
 Built on Gemini via Vertex AI and deployed on Cloud Run.
 

@@ -1,7 +1,7 @@
 {
-  "name": "synapseos",
+  "name": "synapse",
   "version": "0.1.0",
-  "description": "SynapseOS: cited work evidence chat for updates and performance reviews, on Gemini and Cloud Run",
+  "description": "Synapse: cited work evidence chat for updates and performance reviews, on Gemini and Cloud Run",
   "type": "module",
   "main": "server.js",
   "scripts": {
