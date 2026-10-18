@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Deploys SynapseOS to Cloud Run (single instance: evidence store is held in memory) using Vertex AI for Gemini (no API key needed).
+# Deploys Synapse to Cloud Run (single instance: evidence store is held in memory) using Vertex AI for Gemini (no API key needed).
 # Usage: PROJECT_ID=my-project ./deploy.sh
 set -euo pipefail
 : "${PROJECT_ID:?Set PROJECT_ID}"
 REGION="${REGION:-asia-southeast1}"
-SERVICE="${SERVICE:-synapseos}"
+SERVICE="${SERVICE:-synapse}"
 
 gcloud config set project "$PROJECT_ID"
 gcloud services enable run.googleapis.com aiplatform.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com

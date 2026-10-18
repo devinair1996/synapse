@@ -1,4 +1,4 @@
-# Deploys SynapseOS to Google Cloud Run on push to main.
+# Deploys Synapse to Google Cloud Run on push to main.
 # Auth is Workload Identity Federation: no GCP key is stored in GitHub.
 # One-time setup (see README "CI/CD" section) creates the pool/provider and a
 # dedicated deployer service account, then these four repo variables/secrets:
@@ -17,9 +17,9 @@ concurrency:
 env:
   PROJECT_ID: ${{ vars.GCP_PROJECT }}
   REGION: ${{ vars.GCP_REGION }}
-  SERVICE: synapseos
+  SERVICE: synapse
   REPO: synapse
-  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/synapse/synapseos:${{ github.sha }}
+  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/synapse/synapse:${{ github.sha }}
 
 permissions:
   contents: read

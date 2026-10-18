@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 process.env.OFFLINE = '1';
 process.env.EVIDENCE_PERSIST = '0';
-process.env.CACHE_PATH = '/tmp/synapseos-test-cache.json';
+process.env.CACHE_PATH = '/tmp/synapse-test-cache.json';
 const store = await import('../lib/store.js');
 const { DEMO_ITEMS, DEMO_PEOPLE, DEMO_COMPETENCIES } = await import('../lib/demo.js');
 const { chat } = await import('../lib/chat.js');

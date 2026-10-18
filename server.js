@@ -74,4 +74,4 @@ app.use((err, _req, res, _next) => {
 });
 
 const port = Number(process.env.PORT) || 8080;
-app.listen(port, () => console.log(`SynapseOS listening on :${port} (mode=${mode()}, model=${MODEL})`));
+app.listen(port, () => console.log(`Synapse listening on :${port} (mode=${mode()}, model=${MODEL})`));
