@@ -187,8 +187,13 @@ function applyRole() {
   $('suggest').innerHTML = sg.map((q) => `<button class="px-2 py-1 rounded-full border border-slate-300 bg-white hover:bg-slate-100">${esc(q)}</button>`).join('');
   $('suggest').querySelectorAll('button').forEach((b) => b.onclick = () => { $('askIn').value = b.textContent; ask(); });
 }
-// Clear the thread and model history so one role's answers never carry into the other.
-$('role').onchange = () => { $('thread').innerHTML = ''; history = []; setStatus(''); applyRole(); };
+// Clear chat, model history and review results so one role's or person's answers never carry into another's.
+const clearAnswers = () => {
+  $('thread').innerHTML = ''; history = []; setStatus('');
+  $('reviewOut').innerHTML = ''; $('draftOut').innerHTML = ''; $('draftBar').classList.add('hidden'); reviewClaims = {};
+};
+$('role').onchange = () => { clearAnswers(); applyRole(); };
+$('me').onchange = clearAnswers;
 
 // ---------- citations ----------
 const chip = (id) => `<button data-cite="${esc(id)}" class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-blue-100 text-slate-700 border border-slate-200 mr-1" title="${esc(EV[id]?.title || id)}">${esc(id)}</button>`;
