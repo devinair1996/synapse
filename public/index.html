@@ -246,7 +246,7 @@ async function runChat(question, preset, label) {
   $('askBtn').disabled = false;
 }
 function ask() { const q = $('askIn').value.trim(); if (!q) return; $('askIn').value = ''; runChat(q); }
-$('askBtn').onclick = ask; $('askIn').onkeydown = (e) => e.key === 'Enter' && ask();
+$('askBtn').onclick = ask; $('askIn').onkeydown = (e) => { if (e.key === 'Enter') ask(); };
 $('standupBtn').onclick = () => runChat('', 'standup', 'Standup for the last 7 days');
 $('teamBtn').onclick = () => runChat('', 'team', 'Team update for the last 14 days');
 
