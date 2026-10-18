@@ -74,28 +74,36 @@ jobs:
           EXISTING="$(gcloud run services describe "$SERVICE" --region "$REGION" \
             --format='value(spec.template.spec.serviceAccountName)' 2>/dev/null || true)"
           if [ -n "$EXISTING" ]; then
-            RUNTIME_SA="$EXISTING"
+            echo "RUNTIME_SA=$EXISTING" >> "$GITHUB_ENV"
+            echo "Existing service; runtime service account: $EXISTING"
           else
-            PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
-            RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+            echo "No existing service: first deploy will use the compute default service account."
           fi
-          echo "RUNTIME_SA=$RUNTIME_SA" >> "$GITHUB_ENV"
-          echo "Runtime service account: $RUNTIME_SA"
 
-      - name: Ensure Vertex AI access for the runtime service account
-        run: gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+      - name: Ensure Vertex AI access (best effort)
+        run: |
+          if [ -z "${RUNTIME_SA:-}" ]; then
+            echo "New service: the compute default SA needs roles/aiplatform.user."
+            echo "If /api/chat returns 403 later, grant it per README 'Deploy via GitHub Actions'."
+            exit 0
+          fi
+          gcloud projects add-iam-policy-binding "$PROJECT_ID" \
             --member="serviceAccount:${RUNTIME_SA}" --role="roles/aiplatform.user" \
-            --condition=None --quiet
+            --condition=None --quiet \
+            || echo "::warning::could not grant roles/aiplatform.user to ${RUNTIME_SA}; grant manually if Gemini calls 403"
 
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy "$SERVICE" \
-            --image "$IMAGE" \
-            --region "$REGION" \
-            --service-account "$RUNTIME_SA" \
-            --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_REGION=${REGION},GEMINI_MODEL=gemini-2.5-flash" \
-            --max-instances 1 --timeout 300 \
-            --allow-unauthenticated --quiet
+          ARGS=(deploy "$SERVICE"
+            --image "$IMAGE"
+            --region "$REGION"
+            --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_REGION=${REGION},GEMINI_MODEL=gemini-2.5-flash"
+            --max-instances 1 --timeout 300
+            --allow-unauthenticated --quiet)
+          if [ -n "${RUNTIME_SA:-}" ]; then
+            ARGS+=(--service-account "$RUNTIME_SA")
+          fi
+          gcloud "${ARGS[@]}"
 
       - name: Smoke test
         run: |
