@@ -94,7 +94,7 @@ jobs:
 
       - name: Deploy to Cloud Run
         run: |
-          ARGS=(deploy "$SERVICE"
+          ARGS=("run" "deploy" "$SERVICE"
             --image "$IMAGE"
             --region "$REGION"
             --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_REGION=${REGION},GEMINI_MODEL=gemini-2.5-flash"
